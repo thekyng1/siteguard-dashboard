@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SiteGuard — Status</title>
+<style>
+:root {
+  --bg: #0b1220; --card: #131c30; --border: #24304d;
+  --text: #e8eef9; --muted: #8ea0c0;
+  --ok: #2ecc71; --warn: #f5a623; --err: #e74c3c; --accent: #38bdf8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-height: 100vh; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 64px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), #2563eb); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 17px; color: #fff; }
+h1 { font-size: 22px; font-weight: 700; }
+.sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; }
+.card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--ok); }
+.card.warn::before { background: var(--warn); }
+.card.err::before { background: var(--err); }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.name { font-weight: 700; font-size: 16px; word-break: break-all; }
+.dot { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.card.warn .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.card.err .dot { background: var(--err); box-shadow: 0 0 8px var(--err); }
+a.url { color: var(--accent); font-size: 13px; text-decoration: none; word-break: break-all; display: block; margin-bottom: 14px; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.metric { background: rgba(255,255,255,0.04); border-radius: 9px; padding: 9px 11px; }
+.metric .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+.metric .v { font-size: 14px; font-weight: 600; }
+.v.good { color: var(--ok); } .v.bad { color: var(--err); } .v.mid { color: var(--warn); }
+.broken-list { margin-top: 12px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.broken-list b { color: var(--err); }
+footer { margin-top: 36px; color: var(--muted); font-size: 12px; text-align: center; }
+.loading, .error-box { text-align: center; color: var(--muted); padding: 60px 0; font-size: 15px; }
+.error-box code { color: var(--err); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="logo">S</div><h1>SiteGuard — Status</h1></header>
+  <div class="sub">Monitorizare automată a site-urilor monitorizate de SiteGuard. Date actualizate zilnic.</div>
+  <div id="root"><div class="loading">Se încarcă datele...</div></div>
+  <footer>SiteGuard — QA automat pentru afacerea dvs. · <span id="updated"></span></footer>
+</div>
+<script>
+const REPORT_URL = "reports/report.json";
+const $ = (s) => document.querySelector(s);
+function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function daysLeft(d) { return typeof d === "number" ? (d) + " zile" : "necunoscut"; }
+function cardHtml(c) {
+  const ssl = c.ssl ?? {};
+  const sslOk = ssl.ok === true && (ssl.certDaysLeft ?? 999) > 21;
+  const sslCls = sslOk ? "good" : ssl.ok === false ? "bad" : "mid";
+  const sslTxt = ssl.status === "unknown" ? "necunoscut" : daysLeft(ssl.certDaysLeft);
+  const speed = c.pageSpeed?.ttfbPlusLoadMs;
+  const speedOk = typeof speed === "number" ? speed <= 2000 : null;
+  const speedCls = speedOk === true ? "good" : speedOk === false ? "bad" : "mid";
+  const speedTxt = typeof speed === "number" ? speed + " ms" : "necunoscut";
+  const mobile = c.mobileViewport?.hasHorizontalScroll;
+  const mobileOk = mobile === false;
+  const mobileCls = mobileOk ? "good" : mobile === true ? "bad" : "mid";
+  const mobileTxt = mobileOk ? "OK" : mobile === true ? "scroll orizontal" : "necunoscut";
+  const broken = c.brokenLinks ?? [];
+  const hasBroken = broken.length > 0;
+  const statusCls = hasBroken || ssl.ok === false || mobile === true || speedOk === false ? "err"
+    : sslCls === "mid" || mobileCls === "mid" ? "warn" : "";
+  const brokenHtml = hasBroken
+    ? '<div class="broken-list"><b>Link-uri moarte (' + broken.length + '):</b><br>' +
+      broken.slice(0, 3).map(function (b) { return esc(b.url) + " (status " + esc(b.status) + ")"; }).join("<br>") +
+      (broken.length > 3 ? "<br>... și încă " + (broken.length - 3) : "") + "</div>"
+    : "";
+  return '<div class="card ' + statusCls + '">' +
+    '<div class="card-head"><div class="name">' + esc(c.clientId) + '</div><div class="dot"></div></div>' +
+    (c.url ? '<a class="url" href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.url) + '</a>' : "") +
+    '<div class="metrics">' +
+    '<div class="metric"><div class="k">SSL</div><div class="v ' + sslCls + '">' + esc(sslTxt) + '</div></div>' +
+    '<div class="metric"><div class="k">Viteză</div><div class="v ' + speedCls + '">' + esc(speedTxt) + '</div></div>' +
+    '<div class="metric"><div class="k">Mobil</div><div class="v ' + mobileCls + '">' + esc(mobileTxt) + '</div></div>' +
+    '<div class="metric"><div class="k">Link-uri moarte</div><div class="v ' + (hasBroken ? "bad" : "good") + '">' + broken.length + '</div></div>' +
+    '</div>' + brokenHtml +
+    '<div class="broken-list">Scanat: ' + esc(new Date(c.scannedAt).toLocaleString("ro-RO")) + '</div>' +
+    '</div>';
+}
+fetch(REPORT_URL, { cache: "no-store" })
+  .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(function (data) {
+    var clients = data.clients ?? [];
+    var root = $("#root");
+    if (!clients.length) {
+      root.innerHTML = '<div class="error-box">Nicio dată disponibilă încă.</div>';
+    } else {
+      var html = '<div class="grid">';
+      for (var i = 0; i < clients.length; i++) html += cardHtml(clients[i]);
+      root.innerHTML = html + "</div>";
+    }
+    $("#updated").textContent = "Actualizat: " + new Date(data.publishedAt).toLocaleString("ro-RO");
+  })
+  .catch(function () {
+    $("#root").innerHTML = '<div class="error-box">Raportul nu e disponibil încă.<br>Așteaptă prima scanare publicată (zilnic, 05:00 UTC).<br><code>reports/report.json</code></div>';
+  });
+</script>
+</body>
+</html>
