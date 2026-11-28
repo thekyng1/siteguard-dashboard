@@ -1,13 +1,13 @@
 {
-  "publishedAt": "2026-11-27T14:40:48.384Z",
+  "publishedAt": "2026-11-28T13:52:21.114Z",
   "clients": [
     {
       "clientId": "github-profile-demo",
       "url": "https://github.com/thekyng1",
-      "scannedAt": "2026-11-27T14:40:15.586Z",
+      "scannedAt": "2026-11-28T13:51:44.560Z",
       "maxPages": 25,
       "brokenLinks": [],
-      "transientCount": 0,
+      "transientCount": 3,
       "ssl": {
         "ok": true,
         "certDaysLeft": null,
@@ -17,7 +17,7 @@
         "hasHorizontalScroll": false
       },
       "pageSpeed": {
-        "ttfbPlusLoadMs": 141
+        "ttfbPlusLoadMs": 115
       }
     }
   ]
